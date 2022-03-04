@@ -25,19 +25,25 @@ minAccX = 100
 board = Arduino("/dev/cu.usbmodem2101")
 keyboard = Controller()
 
+        
+#switch sustain to off for 200ms and then on again    
+def sustain_handle():
+        board.digital[13].write(0)
+        time.sleep(0.2)
+        board.digital[13].write(1)
+
+#callback when acceleromter values are sent
 def eeg_handler_acc(address: str,*args):
     global activate_pageturn, activate_sustain, startTime, startSustainResetTime, minAccX
-
     if(startTime == 0):
         startTime = time.time()
 
     dateTimeObj = datetime.now()
     printStr = dateTimeObj.strftime("%Y-%m-%d %H:%M:%S.%f")
     acc = []
-    
-
     for arg in args:
         acc.append(float(arg))
+
     #Turn pages based on head rotation of left and right
     if (acc[1] < 0.05 and acc[1] > -0.05 ):
         activate_pageturn = True
@@ -45,7 +51,7 @@ def eeg_handler_acc(address: str,*args):
        activate_pageturn = False
        keyboard.press(Key.right)
        keyboard.release(Key.right)
-       print("right key pressed")
+
     
     elif (acc[1] < -0.2 and activate_pageturn):
         activate_pageturn = False
@@ -53,16 +59,14 @@ def eeg_handler_acc(address: str,*args):
         keyboard.release(Key.left)
         print("left key pressed")
 
+    #find minAccX value in the past 300ms
     if (time.time() - startTime < timeDiffThreshold):
-        '''print(acc[0]-minAccX)'''
         if(acc[0] < minAccX):
             minAccX = acc[0]
-
-
+    #handle sustain when the user headbangs in front
     if(time.time() - startTime >= timeDiffThreshold):
         if (acc[0]-minAccX > accValueThreshold and activate_sustain):  
             sustain_handle()
-            
             activate_sustain = False
             startSustainResetTime = time.time()
         minAccX = 100
@@ -70,24 +74,17 @@ def eeg_handler_acc(address: str,*args):
 
     if ((not activate_sustain) and (time.time() - startSustainResetTime > sustainResetTimeThreshold)):
         activate_sustain = True
-        
-        
-def sustain_handle():
-        board.digital[13].write(0)
-        time.sleep(0.2)
-        board.digital[13].write(1)
 
 
-
+#handle sustain when user blinks
 def eeg_handler_blink(address: str,*args):
     print("blinked")
     sustain_handle()
-    
+
+#start server to listen for muse band signals over wifi    
 if __name__ == "__main__":
     dispatcher = dispatcher.Dispatcher()
     dispatcher.map("/muse/acc", eeg_handler_acc)
     dispatcher.map("/muse/elements/blink", eeg_handler_blink)
     server = osc_server.ThreadingOSCUDPServer((ip, port), dispatcher)
     server.serve_forever()
-
-

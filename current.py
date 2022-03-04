@@ -74,7 +74,6 @@ def eeg_handler_acc(address: str,*args):
         if(acc[0] < minAccX):
             minAccX = acc[0]
 
-
     if(time.time() - startTime >= timeDiffThreshold):
         if (acc[0]-minAccX > accValueThreshold and activate_sustain):  
             sustain_handle()
@@ -87,13 +86,10 @@ def eeg_handler_acc(address: str,*args):
     if ((not activate_sustain) and (time.time() - startSustainResetTime > sustainResetTimeThreshold)):
         activate_sustain = True
         
-        
 def sustain_handle():
         board.digital[13].write(0)
         time.sleep(0.2)
         board.digital[13].write(1)
-
-
 
 def eeg_handler_blink(address: str,*args):
     print("blinked")
